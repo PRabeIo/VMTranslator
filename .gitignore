@@ -1,0 +1,18 @@
+# Build
+out/
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Saídas geradas localmente nos testes do Project 07
+projects/07/**/*.asm
+projects/07/**/*.out
