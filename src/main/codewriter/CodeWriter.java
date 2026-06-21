@@ -6,15 +6,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Traduz comandos VM (Parte 1) para Assembly Hack.
+ * Traduz comandos VM (Partes 1 e 2) para Assembly Hack.
  */
 public class CodeWriter {
 
     private static final String[] SEGMENT_POINTERS = {"THIS", "THAT"};
 
     private final BufferedWriter writer;
-    private final String staticPrefix;
+    private String staticPrefix;
+    private String currentFunction = "";
     private int labelCounter = 0;
+    private int returnCounter = 0;
 
     public CodeWriter(String outputFilename) throws IOException {
         writer = Files.newBufferedWriter(Path.of(outputFilename));
@@ -27,6 +29,161 @@ public class CodeWriter {
             name = name.substring(0, name.length() - 4);
         }
         return name;
+    }
+
+    public void setFileName(String fileName) {
+        staticPrefix = fileName;
+    }
+
+    public void writeBootstrap() throws IOException {
+        writeLine("@256");
+        writeLine("D=A");
+        writeLine("@SP");
+        writeLine("M=D");
+        writeCall("Sys.init", 0);
+    }
+
+    public void writeLabel(String label) throws IOException {
+        writeLine("(" + qualifyLabel(label) + ")");
+    }
+
+    public void writeGoto(String label) throws IOException {
+        writeLine("@" + qualifyLabel(label));
+        writeLine("0;JMP");
+    }
+
+    public void writeIf(String label) throws IOException {
+        writeLine("@SP");
+        writeLine("AM=M-1");
+        writeLine("D=M");
+        writeLine("@" + qualifyLabel(label));
+        writeLine("D;JNE");
+    }
+
+    private String qualifyLabel(String label) {
+        if (currentFunction.isEmpty()) {
+            return label;
+        }
+        return currentFunction + "$" + label;
+    }
+
+    public void writeFunction(String functionName, int numLocals) throws IOException {
+        currentFunction = functionName;
+        writeLine("(" + functionName + ")");
+
+        if (numLocals <= 0) {
+            return;
+        }
+
+        String loopLabel = functionName + "$init." + labelCounter++;
+        writeLine("@" + numLocals);
+        writeLine("D=A");
+        writeLine("(" + loopLabel + ")");
+        writeLine("@SP");
+        writeLine("A=M");
+        writeLine("M=0");
+        writeLine("@SP");
+        writeLine("M=M+1");
+        writeLine("D=D-1");
+        writeLine("@" + loopLabel);
+        writeLine("D;JGT");
+    }
+
+    public void writeCall(String functionName, int numArgs) throws IOException {
+        String returnLabel = functionName + "$ret." + returnCounter++;
+
+        writeLine("@" + returnLabel);
+        writeLine("D=A");
+        pushD();
+
+        writeLine("@LCL");
+        writeLine("D=M");
+        pushD();
+        writeLine("@ARG");
+        writeLine("D=M");
+        pushD();
+        writeLine("@THIS");
+        writeLine("D=M");
+        pushD();
+        writeLine("@THAT");
+        writeLine("D=M");
+        pushD();
+
+        writeLine("@SP");
+        writeLine("D=M");
+        writeLine("@" + numArgs);
+        writeLine("D=D-A");
+        writeLine("@5");
+        writeLine("D=D-A");
+        writeLine("@ARG");
+        writeLine("M=D");
+
+        writeLine("@SP");
+        writeLine("D=M");
+        writeLine("@LCL");
+        writeLine("M=D");
+
+        writeLine("@" + functionName);
+        writeLine("0;JMP");
+
+        writeLine("(" + returnLabel + ")");
+    }
+
+    public void writeReturn() throws IOException {
+        writeLine("@LCL");
+        writeLine("D=M");
+        writeLine("@R13");
+        writeLine("M=D");
+
+        writeLine("@5");
+        writeLine("A=D-A");
+        writeLine("D=M");
+        writeLine("@R14");
+        writeLine("M=D");
+
+        writeLine("@ARG");
+        writeLine("D=M");
+        writeLine("@R15");
+        writeLine("M=D");
+        writeLine("@SP");
+        writeLine("AM=M-1");
+        writeLine("D=M");
+        writeLine("@R15");
+        writeLine("A=M");
+        writeLine("M=D");
+
+        writeLine("@ARG");
+        writeLine("D=M+1");
+        writeLine("@SP");
+        writeLine("M=D");
+
+        writeLine("@R13");
+        writeLine("AM=M-1");
+        writeLine("D=M");
+        writeLine("@THAT");
+        writeLine("M=D");
+
+        writeLine("@R13");
+        writeLine("AM=M-1");
+        writeLine("D=M");
+        writeLine("@THIS");
+        writeLine("M=D");
+
+        writeLine("@R13");
+        writeLine("AM=M-1");
+        writeLine("D=M");
+        writeLine("@ARG");
+        writeLine("M=D");
+
+        writeLine("@R13");
+        writeLine("AM=M-1");
+        writeLine("D=M");
+        writeLine("@LCL");
+        writeLine("M=D");
+
+        writeLine("@R14");
+        writeLine("A=M");
+        writeLine("0;JMP");
     }
 
     public void writeArithmetic(String command) throws IOException {
