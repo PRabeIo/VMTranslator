@@ -48,13 +48,20 @@ public class Parser {
         return switch (current[0]) {
             case "push" -> CommandType.C_PUSH;
             case "pop" -> CommandType.C_POP;
+            case "label" -> CommandType.C_LABEL;
+            case "goto" -> CommandType.C_GOTO;
+            case "if-goto" -> CommandType.C_IF;
+            case "function" -> CommandType.C_FUNCTION;
+            case "call" -> CommandType.C_CALL;
+            case "return" -> CommandType.C_RETURN;
             default -> CommandType.C_ARITHMETIC;
         };
     }
 
     public String arg1() {
         requireCurrent();
-        if (commandType() == CommandType.C_ARITHMETIC) {
+        CommandType type = commandType();
+        if (type == CommandType.C_ARITHMETIC || type == CommandType.C_RETURN) {
             return current[0];
         }
         return current[1];
@@ -62,10 +69,10 @@ public class Parser {
 
     public int arg2() {
         requireCurrent();
-        if (commandType() != CommandType.C_PUSH && commandType() != CommandType.C_POP) {
-            throw new IllegalStateException("arg2() só se aplica a push/pop.");
-        }
-        return Integer.parseInt(current[2]);
+        return switch (commandType()) {
+            case C_PUSH, C_POP, C_FUNCTION, C_CALL -> Integer.parseInt(current[2]);
+            default -> throw new IllegalStateException("arg2() não se aplica a este comando.");
+        };
     }
 
     private void requireCurrent() {
