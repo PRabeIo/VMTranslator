@@ -38,4 +38,29 @@ class ParserTest {
         assertEquals("add", parser.arg1());
         assertFalse(parser.hasMoreCommands());
     }
+
+    @Test
+    void reconheceComandosDaParte2(@TempDir Path dir) throws Exception {
+        Path vm = dir.resolve("Flow.vm");
+        Files.writeString(vm, """
+                label LOOP
+                goto LOOP
+                if-goto LOOP
+                function Sys.main 2
+                call Sys.add12 1
+                return
+                """);
+
+        Parser parser = new Parser(vm.toString());
+        String[] expected = {
+                "C_LABEL", "C_GOTO", "C_IF", "C_FUNCTION", "C_CALL", "C_RETURN"
+        };
+
+        for (String type : expected) {
+            assertTrue(parser.hasMoreCommands());
+            parser.advance();
+            assertEquals(CommandType.valueOf(type), parser.commandType());
+        }
+        assertFalse(parser.hasMoreCommands());
+    }
 }

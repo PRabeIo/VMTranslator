@@ -45,4 +45,31 @@ class CodeWriterTest {
         String out = Files.readString(asm);
         assertTrue(out.contains("M=M+D"));
     }
+
+    @Test
+    void bootstrapChamaSysInit(@TempDir Path dir) throws Exception {
+        Path asm = dir.resolve("Prog.asm");
+        CodeWriter cw = new CodeWriter(asm.toString());
+        cw.writeBootstrap();
+        cw.close();
+
+        String out = Files.readString(asm);
+        assertTrue(out.contains("@256"));
+        assertTrue(out.contains("@SP"));
+        assertTrue(out.contains("M=D"));
+        assertTrue(out.contains("@Sys.init"));
+        assertTrue(out.contains("0;JMP"));
+    }
+
+    @Test
+    void labelUsaFuncaoAtual(@TempDir Path dir) throws Exception {
+        Path asm = dir.resolve("Prog.asm");
+        CodeWriter cw = new CodeWriter(asm.toString());
+        cw.writeFunction("Sys.main", 0);
+        cw.writeLabel("LOOP");
+        cw.close();
+
+        String out = Files.readString(asm);
+        assertTrue(out.contains("(Sys.main$LOOP)"));
+    }
 }
